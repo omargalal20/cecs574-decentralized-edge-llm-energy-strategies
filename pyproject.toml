@@ -1,7 +1,14 @@
 [project]
 name = "cecs574-decentralized-edge-llm-energy-strategies"
 version = "0.1.0"
-description = "Add your description here"
+description = "Comparative Analysis of Static and Dynamic Energy Management Strategies for Decentralized LLM Inference on Energy-Harvesting Edge Networks"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.4",
+    "pandas>=2.2.3",
+    "plotly>=6.0.1",
+    "scipy>=1.15.2",
+    "streamlit>=1.44.1",
+]
