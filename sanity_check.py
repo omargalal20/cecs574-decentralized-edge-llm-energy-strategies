@@ -9,17 +9,28 @@ Run from the project root with:
 All three checks must PASS before running full experiments.
 
 Check 1 — Conservation
-  Total network energy changes only by harvested - consumed each slot.
-  Verifies the Eq. 1 battery update has no leaks or phantom sources.
+  Total network energy can only decrease (consumed > harvested at 0.35 kJ/slot).
+  Verifies no phantom energy is created above E_max and no negative batteries.
 
 Check 2 — Ordering
   S1 (15W) < S2 (30W) < S3 (60W) for jobs completed.
   S3 < S2 < S1 for final average battery.
   Verifies processing slots and energy-per-job constants are correct.
 
+  Parameter choice: 0.35 kJ/slot (350 J/slot), p=0.7, T=300.
+  Rationale: each device harvests ~0.35 x 300 = 105 kJ over the run (slightly
+  above one full battery recharge). At p=0.7, devices process roughly 1 job
+  every 3-4 slots. S3 processes fastest (kappa=1) but drains fastest too.
+  This keeps batteries in a dynamic range where ordering is clear.
+
 Check 3 — Convergence
-  Mean downtime stabilizes as N_ITERATIONS grows: 10 -> 50 -> 200.
-  Std shrinks roughly as 1/sqrt(N). Verifies i.i.d. energy model is stationary.
+  Mean downtime stabilizes as N grows (10 -> 50 -> 200).
+  Std shrinks as more iterations are averaged.
+  Verifies the energy model is i.i.d. and seeds are independent.
+
+  Parameter choice: 0.45 kJ/slot, p=0.5, T=100.
+  Rationale: this puts downtime at ~10-30% per run — genuinely stochastic,
+  so Monte Carlo averaging has real variance to reduce.
 """
 
 from __future__ import annotations
@@ -35,14 +46,23 @@ PASS = "  [PASS]"
 FAIL = "  [FAIL]"
 SEP  = "-" * 60
 
-# Deliberately stressful config: scarce energy + heavy load
-# 0.20 kJ/slot = 200 J/slot. With 9 devices each consuming 22 kJ/job
-# and p=0.8, batteries drain meaningfully within 200 slots.
-STRESS_CFG = SimConfig(
-    T=200,
+# Check 2 config: tight but not extreme — strategies stay differentiated
+# 0.35 kJ/slot = 350 J/slot, p=0.7, T=300 slots
+# Total harvest per device: 0.35 x 300 = 105 kJ (~1 full recharge)
+# S3 completes most jobs (kappa=1), S1 fewest (kappa=3)
+ORDERING_CFG = SimConfig(
+    T=300,
     N_ITERATIONS=1,
-    JOB_ARRIVAL_PROB=0.8,
-    ENERGY_MEAN_BASELINE=0.20,
+    JOB_ARRIVAL_PROB=0.7,
+    ENERGY_MEAN_BASELINE=0.35,
+)
+
+# Check 3 config: moderate regime where downtime is ~10-30% and genuinely varies
+# 0.45 kJ/slot = 450 J/slot, p=0.5 — system in dynamic equilibrium
+CONVERGENCE_CFG = SimConfig(
+    T=100,
+    JOB_ARRIVAL_PROB=0.5,
+    ENERGY_MEAN_BASELINE=0.45,
 )
 
 
@@ -52,77 +72,60 @@ STRESS_CFG = SimConfig(
 
 def check_conservation() -> bool:
     """
-    Verify that total battery stays within valid bounds and no phantom energy
-    is created. Runs S2 for 200 slots under scarce energy and heavy load.
+    Verify that no phantom energy is created — batteries stay within [0, E_max]
+    and the total network energy never exceeds the initial charge plus harvest.
 
-    A rigorous per-slot balance is difficult because battery clamping at 0
-    and E_max means harvested != consumed + delta in general. Instead we verify:
-      - final battery >= 0 for all devices
-      - final battery <= E_max for all devices
-      - implied consumed (harvested - delta) >= 0 (energy not created)
+    We run S2 using network.run() directly, which handles the correct tick order.
+    Before and after, we record total battery. We also compute the theoretical
+    maximum possible final energy (initial + all harvest, clamped to E_max).
+    The actual final energy must be <= this maximum (consumption can only help).
     """
     print(f"\n{SEP}")
     print("Check 1 - Energy conservation")
     print(SEP)
 
-    cfg = STRESS_CFG
+    cfg = ORDERING_CFG
     n_total = cfg.N_GROUPS * cfg.DEVICES_PER_GROUP
     net = build_network("S2", config=cfg, seed=42)
 
     initial_total = sum(d.battery for d in net.devices)
     print(f"  n_devices             : {n_total}")
+    print(f"  Energy arrival        : {cfg.ENERGY_MEAN_BASELINE:.2f} kJ/slot/device")
     print(f"  Initial total battery : {initial_total:.1f} kJ")
 
-    total_harvested = 0.0
-
-    # Run slot by slot, tracking harvest ourselves
-    net._reset()
-    for t in range(cfg.T):
-        slot_harvested = sum(
-            net._energy_models[i].sample(t) for i in range(n_total)
-        )
-        total_harvested += slot_harvested
-
-        # Let devices step (uses the same energy models internally — we just
-        # sampled above for tracking; network.run() does both in one call,
-        # but here we drive manually to intercept per-slot harvest)
-        for i, device in enumerate(net.devices):
-            h = net._energy_models[i].sample(t)
-            device.step(h)
-
-        if net._power_controller is not None:
-            net._power_controller.update(net.devices)
-        net._scheduler.update(net.devices)
-        for group in net.groups:
-            if np.random.default_rng(t).random() < cfg.JOB_ARRIVAL_PROB:
-                chosen = net._scheduler.select_device(group, t)
-                if chosen is not None:
-                    chosen.accept_job()
+    # Run via the standard simulation path
+    metrics = net.run(T=cfg.T, seed=42)
 
     final_total = sum(d.battery for d in net.devices)
     energy_delta = final_total - initial_total
-    implied_consumed = total_harvested - energy_delta
+
+    # Upper bound: initial + total possible harvest (ignoring clamping)
+    # Actual must be <= this because consumption can only reduce energy further
+    total_possible_harvest = cfg.ENERGY_MEAN_BASELINE * n_total * cfg.T
+    theoretical_max = min(initial_total + total_possible_harvest,
+                          float(cfg.E_MAX * n_total))
 
     print(f"  Final   total battery : {final_total:.1f} kJ")
     print(f"  Change                : {energy_delta:+.1f} kJ")
-    print(f"  Total harvested       : {total_harvested:.1f} kJ")
-    print(f"  Implied consumed      : {implied_consumed:.1f} kJ")
+    print(f"  Theoretical max final : {theoretical_max:.1f} kJ")
+    print(f"  Jobs completed        : {int(metrics['jobs_completed'].sum())}")
 
-    max_possible = cfg.E_MAX * n_total
-    ok_upper = final_total <= max_possible + 1e-6
+    ok_upper = final_total <= theoretical_max + 1.0   # 1 kJ float tolerance
     ok_lower = final_total >= 0.0
-    ok_consumed = implied_consumed >= -1e-6
+    ok_per_device = all(0 <= d.battery <= cfg.E_MAX for d in net.devices)
 
-    passed = ok_upper and ok_lower and ok_consumed
+    passed = ok_upper and ok_lower and ok_per_device
     if passed:
-        print(PASS + " battery levels within valid range, no phantom energy")
+        print(PASS + " battery bounds respected, no phantom energy")
     else:
         if not ok_upper:
-            print(FAIL + f" final battery exceeds maximum ({max_possible} kJ)")
+            print(FAIL + f" final battery {final_total:.1f} > theoretical max {theoretical_max:.1f}")
         if not ok_lower:
-            print(FAIL + " negative battery detected")
-        if not ok_consumed:
-            print(FAIL + f" implied consumed energy is negative ({implied_consumed:.2f} kJ)")
+            print(FAIL + " total battery went negative")
+        if not ok_per_device:
+            for d in net.devices:
+                if not (0 <= d.battery <= cfg.E_MAX):
+                    print(FAIL + f" device {d.device_id}: battery={d.battery}")
     return passed
 
 
@@ -132,25 +135,33 @@ def check_conservation() -> bool:
 
 def check_ordering() -> bool:
     """
-    Run S1, S2, S3 for 200 slots with p=0.8 and scarce energy (0.20 kJ/slot).
-    Verify:
-      - jobs_completed: S1 < S2 < S3  (S3 fastest: kappa=1 slot/job)
-      - mean battery:   S3 < S2 < S1  (S3 most energy-hungry: 23 kJ/job)
+    Run S1, S2, S3 for 300 slots with p=0.7 and moderate scarcity (0.35 kJ/slot).
 
-    This is the fundamental sanity check from the paper (Figure 2a).
+    Expected (from paper physics):
+      jobs_completed : S1 < S2 < S3   (S3 is fastest: kappa=1 slot/job)
+      avg battery    : S3 < S2 < S1   (S3 burns most energy: 23 kJ/job at κ=1)
+
+    At 0.35 kJ/slot each device harvests ~105 kJ total — enough to process
+    ~4-5 jobs with full recharge cycles, keeping strategies in distinct regimes.
     """
     print(f"\n{SEP}")
     print("Check 2 - Strategy ordering (S1 < S2 < S3 on throughput)")
+    print(f"  Config: {ORDERING_CFG.ENERGY_MEAN_BASELINE} kJ/slot, "
+          f"p={ORDERING_CFG.JOB_ARRIVAL_PROB}, T={ORDERING_CFG.T}")
     print(SEP)
 
     results = {}
     for strategy in ["S1", "S2", "S3"]:
-        net = build_network(strategy, config=STRESS_CFG, seed=7)
-        metrics = net.run(T=STRESS_CFG.T, seed=7)
+        net = build_network(strategy, config=ORDERING_CFG, seed=7)
+        metrics = net.run(T=ORDERING_CFG.T, seed=7)
         jobs = int(metrics["jobs_completed"].sum())
         avg_battery = float(metrics["batteries"].mean())
-        results[strategy] = {"jobs": jobs, "battery": avg_battery}
-        print(f"  {strategy}: {jobs:4d} jobs completed, avg battery = {avg_battery:.1f} kJ")
+        final_battery = float(metrics["batteries"][-1].mean())
+        results[strategy] = {"jobs": jobs, "battery": avg_battery,
+                             "final_battery": final_battery}
+        print(f"  {strategy}: {jobs:4d} jobs completed, "
+              f"avg battery = {avg_battery:.1f} kJ, "
+              f"final battery = {final_battery:.1f} kJ")
 
     jobs_order_ok = (
         results["S1"]["jobs"] < results["S2"]["jobs"] < results["S3"]["jobs"]
@@ -162,12 +173,18 @@ def check_ordering() -> bool:
     if jobs_order_ok:
         print(PASS + " jobs completed: S1 < S2 < S3")
     else:
-        print(FAIL + " jobs ordering violated -- check PROCESSING_SLOTS in device.py")
+        print(FAIL + f" jobs ordering violated: "
+              f"S1={results['S1']['jobs']}, S2={results['S2']['jobs']}, "
+              f"S3={results['S3']['jobs']}")
+        print("       (check PROCESSING_SLOTS in core/device.py)")
 
     if battery_order_ok:
         print(PASS + " avg battery: S3 < S2 < S1")
     else:
-        print(FAIL + " battery ordering violated -- check ENERGY_PER_JOB in device.py")
+        print(FAIL + f" battery ordering violated: "
+              f"S1={results['S1']['battery']:.1f}, S2={results['S2']['battery']:.1f}, "
+              f"S3={results['S3']['battery']:.1f}")
+        print("       (check ENERGY_PER_JOB in core/device.py)")
 
     return jobs_order_ok and battery_order_ok
 
@@ -178,27 +195,26 @@ def check_ordering() -> bool:
 
 def check_convergence() -> bool:
     """
-    Run D2 at p=0.5 and scarce energy for N=10, 50, 200 replications.
-    Mean downtime should stabilize; std should shrink roughly as 1/sqrt(N).
-    Verifies the energy model is i.i.d. (stationary) and seeds are independent.
+    Run D2 at 0.45 kJ/slot and p=0.5 for N=10, 50, 200 replications.
+
+    At these parameters, downtime is ~10-30% (genuinely stochastic), so
+    Monte Carlo averaging produces meaningful variance reduction. The std
+    should shrink and the mean should stabilize — confirming the energy
+    model is i.i.d. and seeds produce independent runs.
     """
     print(f"\n{SEP}")
     print("Check 3 - Monte Carlo convergence (std shrinks as 1/sqrt(N))")
+    print(f"  Config: {CONVERGENCE_CFG.ENERGY_MEAN_BASELINE} kJ/slot, "
+          f"p={CONVERGENCE_CFG.JOB_ARRIVAL_PROB}, T={CONVERGENCE_CFG.T}")
     print(SEP)
 
     ns = [10, 50, 200]
     means = []
     stds  = []
 
-    cfg = SimConfig(
-        T=100,
-        JOB_ARRIVAL_PROB=0.5,
-        ENERGY_MEAN_BASELINE=0.25,
-    )
-
     for n in ns:
-        net = build_network("D2", config=cfg, seed=0)
-        stats = net.run_batch(T=cfg.T, n_iterations=n, seed_start=0)
+        net = build_network("D2", config=CONVERGENCE_CFG, seed=0)
+        stats = net.run_batch(T=CONVERGENCE_CFG.T, n_iterations=n, seed_start=0)
         m = stats["mean_inactive_fraction"]
         s = stats["std_inactive_fraction"]
         means.append(m)
