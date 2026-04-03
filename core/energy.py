@@ -4,6 +4,16 @@ Energy arrival models for edge devices equipped with renewable energy sources.
 Both models expose the same interface — sample(t) — so they are interchangeable
 in any simulation component without code changes.
 
+UNIT CONVENTION
+---------------
+All values returned by sample() and stored in low/high/peak/base are in **kJ**
+(kilojoules per time slot). This matches the battery capacity (E_max [kJ]) and
+job energy consumption (C_E [kJ]) in device.py, so no unit conversion is needed.
+
+Mapping to paper notation (which uses J/slot):
+  UniformEnergyModel(low=0.44, high=0.66)  <->  paper [440, 660] J/slot
+  ENERGY_MEAN_BASELINE = 0.55 kJ/slot      <->  paper 550 J/slot
+
 Reference: Khoshsirat et al. (GLOBECOM 2024), §III system model.
 """
 
@@ -37,11 +47,11 @@ class UniformEnergyModel:
     # ------------------------------------------------------------------
 
     def sample(self, t: int = 0) -> float:  # noqa: ARG002 (t unused but kept for API symmetry)
-        """Return energy arriving this slot [J]. Time slot t is ignored."""
+        """Return energy arriving this slot [kJ]. Time slot t is ignored."""
         return float(self._rng.uniform(self.low, self.high))
 
     def mean(self) -> float:
-        """Expected energy per slot [J]."""
+        """Expected energy per slot [kJ]."""
         return (self.low + self.high) / 2.0
 
     def pmf(self, e_values: np.ndarray) -> np.ndarray:
@@ -114,7 +124,7 @@ class DiurnalEnergyModel:
 
     def sample(self, t: int = 0) -> float:
         """
-        Return energy arriving at slot t [J].
+        Return energy arriving at slot t [kJ].
 
         A small Gaussian noise term (std = 5% of amplitude) is added to
         simulate realistic solar irradiance fluctuations.
@@ -127,13 +137,13 @@ class DiurnalEnergyModel:
         return float(max(0.0, noisy))
 
     def deterministic_value(self, t: int) -> float:
-        """Return the noise-free sinusoidal value at slot t [J]."""
+        """Return the noise-free sinusoidal value at slot t [kJ]."""
         return self._vertical_shift + self._amplitude * math.sin(
             2 * math.pi * t / self.period_slots - math.pi / 2
         )
 
     def mean(self) -> float:
-        """Expected energy per slot [J] (equals vertical shift of sinusoid)."""
+        """Expected energy per slot [kJ] (equals vertical shift of sinusoid)."""
         return self._vertical_shift
 
     def __repr__(self) -> str:

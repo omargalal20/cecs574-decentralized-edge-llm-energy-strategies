@@ -60,35 +60,36 @@ def test_energy_models() -> bool:
     section("1. Energy models")
     ok = True
 
-    # Uniform
+    # Uniform — values in kJ/slot (0.10 to 0.50 kJ/slot = 100 to 500 J/slot)
     rng = np.random.default_rng(0)
-    em = UniformEnergyModel(low=100.0, high=500.0, rng=rng)
+    em = UniformEnergyModel(low=0.10, high=0.50, rng=rng)
     samples = [em.sample(t) for t in range(1000)]
-    ok &= check("Uniform: all samples in [low, high]",
-                all(100.0 <= s <= 500.0 for s in samples))
-    ok &= check("Uniform: mean ~= 300 J",
-                abs(np.mean(samples) - 300.0) < 15.0,
-                f"got {np.mean(samples):.1f}")
+    ok &= check("Uniform: all samples in [low, high] kJ",
+                all(0.10 <= s <= 0.50 for s in samples))
+    ok &= check("Uniform: mean ~= 0.30 kJ",
+                abs(np.mean(samples) - 0.30) < 0.015,
+                f"got {np.mean(samples):.4f}")
 
+    # PMF operates on integer kJ grid; with sub-kJ values all mass goes to 0
     e_grid = np.arange(0, 101)
     pmf = em.pmf(e_grid)
-    ok &= check("Uniform PMF sums to <= 1.0 (discrete approximation)",
+    ok &= check("Uniform PMF sums to <= 1.0 (sub-kJ -> mass at 0)",
                 pmf.sum() <= 1.0 + 1e-9,
                 f"sum={pmf.sum():.4f}")
 
-    # Diurnal
+    # Diurnal — values in kJ/slot (peak=0.80, base=0.05 matches config defaults)
     rng2 = np.random.default_rng(1)
-    dm = DiurnalEnergyModel(peak=800.0, base=50.0, period_slots=864, rng=rng2)
+    dm = DiurnalEnergyModel(peak=0.80, base=0.05, period_slots=864, rng=rng2)
     noon_slot = 864 // 4
     noon_val = dm.deterministic_value(noon_slot)
     midnight_val = dm.deterministic_value(0)
     ok &= check("Diurnal: noon > midnight", noon_val > midnight_val,
-                f"noon={noon_val:.1f}, midnight={midnight_val:.1f}")
+                f"noon={noon_val:.4f}, midnight={midnight_val:.4f} kJ")
     diurnal_samples = [dm.sample(t) for t in range(864)]
     ok &= check("Diurnal: all samples >= 0", all(s >= 0 for s in diurnal_samples))
-    ok &= check("Diurnal: mean ~= (peak+base)/2",
-                abs(np.mean(diurnal_samples) - dm.mean()) < 50.0,
-                f"got {np.mean(diurnal_samples):.1f}, expected ~= {dm.mean():.1f}")
+    ok &= check("Diurnal: mean ~= (peak+base)/2 kJ",
+                abs(np.mean(diurnal_samples) - dm.mean()) < 0.05,
+                f"got {np.mean(diurnal_samples):.4f}, expected ~{dm.mean():.4f}")
 
     return ok
 
@@ -126,12 +127,12 @@ def test_device() -> bool:
     ok &= check("Queue is 1 after accept_job", d.queue == 1)
     ok &= check("Not available with job in queue", not d.is_available())
 
-    # Step through κ=2 slots (PM=2, 30W)
+    # Step through kappa=2 slots (PM=2, 30W). Harvested in kJ directly.
     d._power_mode = 2
     d._slots_remaining = 2
-    result1 = d.step(harvested=22_000)  # 22 kJ in J
+    result1 = d.step(harvested=0.22)  # 0.22 kJ = 220 J (small harvest)
     ok &= check("Job not done after 1 of 2 slots", not result1["job_completed"])
-    result2 = d.step(harvested=22_000)
+    result2 = d.step(harvested=0.22)
     ok &= check("Job done after 2nd slot", result2["job_completed"])
     ok &= check("Queue cleared after job completes", d.queue == 0)
 
@@ -139,7 +140,7 @@ def test_device() -> bool:
     d._battery = cfg.E_MAX
     d._gamma = 1
     d._queue = 0
-    result = d.step(harvested=1_000_000)  # absurdly large harvest
+    result = d.step(harvested=1_000.0)  # absurdly large harvest in kJ
     ok &= check("Battery clamped to E_max", result["battery"] == cfg.E_MAX,
                 f"got {result['battery']}")
 
@@ -155,8 +156,9 @@ def test_markov() -> bool:
     ok = True
     cfg = SimConfig()
 
-    # Use a simple energy model for speed
-    em = UniformEnergyModel(low=200.0, high=400.0)
+    # Use a simple energy model for speed — values in kJ/slot
+    # 0.20-0.40 kJ/slot = 200-400 J/slot (moderate energy, good for Markov solver)
+    em = UniformEnergyModel(low=0.20, high=0.40)
 
     q_lims = {}
     for pm in (1, 2, 3):
@@ -205,8 +207,9 @@ def test_strategies() -> bool:
         for i in range(3)
     ]
 
-    em = UniformEnergyModel(200.0, 400.0, rng=np.random.default_rng(0))
-    energy_models = [UniformEnergyModel(200.0, 400.0, rng=np.random.default_rng(i))
+    # kJ/slot values matching the kJ unit convention
+    em = UniformEnergyModel(0.20, 0.40, rng=np.random.default_rng(0))
+    energy_models = [UniformEnergyModel(0.20, 0.40, rng=np.random.default_rng(i))
                      for i in range(9)]
 
     from core.strategies import (

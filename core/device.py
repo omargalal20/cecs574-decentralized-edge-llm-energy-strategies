@@ -96,14 +96,15 @@ class Device:
         Parameters
         ----------
         harvested : float
-            Energy [J] collected from the renewable source this slot.
-            Converted to kJ internally (1 kJ = 1 000 J).
+            Energy [kJ] collected from the renewable source this slot.
+            The energy model is expected to return values in kJ to match
+            the battery (E_max [kJ]) and job consumption (C_E [kJ]) units.
 
         Returns
         -------
         dict with keys: battery, gamma, power_mode, queue, job_completed
         """
-        harvested_kj = harvested / 1000.0  # paper uses kJ throughout
+        harvested_kj = harvested  # energy model already returns kJ
 
         # Determine energy consumed this slot.
         # C_E(PM) is charged only at the end of a processing stage (the slot

@@ -44,6 +44,8 @@ Key equations
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from scipy.optimize import brentq
 
@@ -117,9 +119,23 @@ def _build_transition_matrix(
     p_m_active = 1.0 - (1.0 - q) ** kappa
     p_m_idle = q  # κ=1 for Q=0 and power-saving states
 
-    # Discrete energy arrival PMF on {0, …, E_max}
-    e_grid = np.arange(E_max + 1, dtype=int)
-    pmf_single = energy_model.pmf(e_grid)
+    # Discrete energy arrival PMF on {0, …, E_max} in kJ units.
+    # The energy model stores bounds in kJ (same unit as the battery grid),
+    # so we use them directly without conversion.
+    low_kj  = energy_model.low
+    high_kj = energy_model.high
+
+    lo_int = max(0, math.ceil(low_kj))
+    hi_int = min(E_max, math.floor(high_kj))
+
+    pmf_single = np.zeros(E_max + 1)
+    if hi_int < lo_int:
+        # Sub-kJ arrivals — all energy rounds to nearest kJ integer
+        nearest = max(0, min(E_max, round((low_kj + high_kj) / 2)))
+        pmf_single[nearest] = 1.0
+    else:
+        n_vals = hi_int - lo_int + 1
+        pmf_single[lo_int: hi_int + 1] = 1.0 / n_vals
 
     # PMF for κ i.i.d. draws (convolution of pmf_single with itself κ times)
     pmf_kappa = pmf_single.copy()

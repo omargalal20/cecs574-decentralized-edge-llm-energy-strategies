@@ -61,7 +61,7 @@ class Network:
     power_controller : PowerModeController | None
         D3 power mode controller. Pass None for all other strategies.
     energy_configs : list of (low, high) tuples | None
-        Per-device uniform energy arrival bounds [J/slot].
+        Per-device uniform energy arrival bounds [kJ/slot].
         Length must equal n_groups × devices_per_group.
         If None, uses the default from SimConfig (symmetric ±20% spread).
     config : SimConfig
@@ -270,8 +270,15 @@ class Network:
 
         # Battery level (mean over devices and time, per run)
         batt_means = np.array([r["batteries"].mean() for r in all_results])
-        agg["mean_battery"] = batt_means.mean()
-        agg["std_battery"] = batt_means.std()
+        agg["mean_battery"] = float(batt_means.mean())
+        agg["std_battery"]  = float(batt_means.std())
+
+        # Normalised throughput: completed / arrived per run
+        completed_arr = np.array([r["jobs_completed"].sum() for r in all_results])
+        arrived_arr   = np.array([r["jobs_arrived"].sum()   for r in all_results])
+        throughput = np.where(arrived_arr > 0, completed_arr / arrived_arr, 0.0)
+        agg["mean_throughput"] = float(throughput.mean())
+        agg["std_throughput"]  = float(throughput.std())
 
         return agg
 
@@ -312,16 +319,17 @@ class Network:
 
 def _default_energy_configs(config: SimConfig) -> list[tuple[float, float]]:
     """
-    Generate default per-device energy arrival bounds [J/slot].
+    Generate default per-device energy arrival bounds [kJ/slot].
 
-    Devices within the same group share the same mean but differ slightly.
-    Energy means span a range representative of the paper's sweep axis.
+    Devices are given slightly different means spread linearly from 0.20 to
+    ENERGY_MEAN_BASELINE kJ/slot (0.20-0.55 kJ/slot = 200-550 J/slot),
+    covering the lower half of the paper's sweep axis as a representative
+    baseline for smoke tests and single-run diagnostics.
     """
     n_total = config.N_GROUPS * config.DEVICES_PER_GROUP
-    # Spread means linearly from 200 to 550 J/slot (covers paper's sweep)
-    means = np.linspace(200, config.ENERGY_MEAN_BASELINE, n_total)
+    means = np.linspace(0.20, config.ENERGY_MEAN_BASELINE, n_total)
     spread = config.ENERGY_SPREAD
-    return [(m * (1 - spread), m * (1 + spread)) for m in means]
+    return [(float(m * (1 - spread)), float(m * (1 + spread))) for m in means]
 
 
 def _initial_power_mode(scheduler: BaseScheduler) -> int:
