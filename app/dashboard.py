@@ -259,8 +259,8 @@ def page_exp1(df: pd.DataFrame | None, strategies: list[str]) -> None:
     st.markdown(
         """
         **What this tests:** How all 7 strategies perform as mean energy
-        arrival varies from scarce (0.05 kJ/slot = 50 J/slot) to abundant
-        (0.60 kJ/slot = 600 J/slot), with fixed job load p=0.3.
+        arrival varies from scarce (50 kJ/slot) to abundant
+        (600 kJ/slot), with fixed job load p=0.3.
 
         **Reproduces:** Khoshsirat et al. (GLOBECOM 2024) Fig 3a / Fig 4a,
         extended to all 7 strategies.
@@ -294,7 +294,7 @@ def page_exp2(df: pd.DataFrame | None, strategies: list[str]) -> None:
         """
         **What this tests:** How strategies respond as job load increases
         from p=0.1 (light) to p=1.0 (every slot), with energy fixed at
-        0.55 kJ/slot (baseline).
+        550 kJ/slot (baseline).
 
         **Reproduces:** Khoshsirat et al. (GLOBECOM 2024) Fig 3b / Fig 4b,
         extended to all 7 strategies.

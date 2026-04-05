@@ -6,11 +6,12 @@ all 7 strategies (S1, S2, S3, D1, D2, D3, D4) and saving results to CSV.
 
 UNIT CONVENTION
 ---------------
-All energy quantities throughout this module are in kJ (not J).
-Paper figures report J/slot on the x-axis; divide by 1000 for kJ/slot used here.
-  Paper Exp 1 sweep:  50–600 J/slot  ->  0.05–0.60 kJ/slot
-  Paper baseline:    550   J/slot  ->  0.55 kJ/slot
-  Diurnal peak:      800   J/slot  ->  0.80 kJ/slot
+All energy quantities throughout this module are in kJ/slot.
+The paper's x-axis labels say "J/slot" but the values map 1:1 to integer kJ
+units on the Markov model's battery grid (E ∈ {0, ..., 100}).
+  Paper Exp 1 sweep:  100–500 on x-axis  ->  100–500 kJ/slot
+  Paper baseline:     550 on x-axis      ->  550 kJ/slot
+  Diurnal peak:       800 on x-axis      ->  800 kJ/slot
 
 Experiments
 -----------
@@ -292,16 +293,15 @@ def run_exp1(
     """
     Reproduce paper Figures 3a / 4a, extended to all 7 strategies.
 
-    Sweeps average energy arrival from sparse (0.05 kJ/slot = 50 J/slot) to
-    abundant (0.60 kJ/slot = 600 J/slot). At each value, all 7 strategies run
-    for N_ITERATIONS replications. Job arrival probability is held at p=0.3.
+    Sweeps average energy arrival from sparse (50 kJ/slot) to abundant
+    (600 kJ/slot). At each value, all 7 strategies run for N_ITERATIONS
+    replications. Job arrival probability is held at p=0.3.
 
     Parameters
     ----------
     config : SimConfig
     energy_means : list of float | None
-        X-axis values [kJ/slot]. Defaults to 12 evenly-spaced points 0.05–0.60.
-        (Equivalent to 50–600 J/slot as reported in paper Fig 3a.)
+        X-axis values [kJ/slot]. Defaults to 12 evenly-spaced points 50–600.
     verbose : bool
         Print progress to stdout.
 
@@ -310,14 +310,14 @@ def run_exp1(
     DataFrame saved to results/exp1_energy_sweep.csv
     """
     if energy_means is None:
-        energy_means = list(np.linspace(0.05, 0.60, 12))
+        energy_means = list(np.linspace(50, 600, 12))
 
     n_total = config.N_GROUPS * config.DEVICES_PER_GROUP
 
     if verbose:
         print("\n[Exp 1] Energy arrival rate sweep")
         print(f"  strategies: {STRATEGIES}")
-        print(f"  energy_means: {[f'{v:.3f}' for v in energy_means]} kJ/slot")
+        print(f"  energy_means: {[f'{v:.0f}' for v in energy_means]} kJ/slot")
         print(f"  N_ITERATIONS={config.N_ITERATIONS}, T={config.T}")
 
     rows: list[dict] = []
@@ -450,18 +450,18 @@ def run_exp3(
     ----------
     config : SimConfig
     peak_values : list of float | None
-        Diurnal peak energy [J/slot]. Defaults to 12 values 150–1150.
+        Diurnal peak energy [kJ/slot]. Defaults to 12 values 150–1150.
     verbose : bool
     """
     if peak_values is None:
-        # Peak 0.15->1.15 kJ/slot gives mean 0.10->0.60 kJ/slot (matching Exp 1 range)
-        peak_values = list(np.linspace(0.15, 1.15, 12))
+        # Peak 150->1150 kJ/slot gives mean 100->600 kJ/slot (matching Exp 1 range)
+        peak_values = list(np.linspace(150, 1150, 12))
 
     if verbose:
         print("\n[Exp 3] Diurnal energy model (novel)")
         print(f"  strategies: {STRATEGIES}")
-        print(f"  peak_values: {[f'{v:.3f}' for v in peak_values]} kJ/slot")
-        print(f"  base={config.DIURNAL_BASE:.3f} kJ/slot, period={config.DIURNAL_PERIOD} slots (24h)")
+        print(f"  peak_values: {[f'{v:.0f}' for v in peak_values]} kJ/slot")
+        print(f"  base={config.DIURNAL_BASE:.0f} kJ/slot, period={config.DIURNAL_PERIOD} slots (24h)")
         print(f"  N_ITERATIONS={config.N_ITERATIONS}, T={config.T}")
 
     rows: list[dict] = []
@@ -643,9 +643,9 @@ def main(
 
     if fast:
         cfg = SimConfig(T=100, N_ITERATIONS=10)
-        energy_means  = [0.10, 0.30, 0.55]   # kJ/slot (= 100, 300, 550 J/slot)
+        energy_means  = [100, 300, 550]      # kJ/slot
         arrival_probs = [0.3, 0.6, 1.0]
-        peak_values   = [0.20, 0.60, 1.10]   # kJ/slot diurnal peak
+        peak_values   = [200, 600, 1100]    # kJ/slot diurnal peak
         hetero_scales = [0.0, 0.5, 1.0]
         print("\n[fast mode] T=100, N_ITERATIONS=10, 3 sweep points per axis")
     else:

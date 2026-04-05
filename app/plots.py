@@ -105,7 +105,7 @@ def exp1_downtime(df: pd.DataFrame, strategies: list[str]) -> go.Figure:
     fig.update_layout(
         **_LAYOUT_BASE,
         title="Exp 1 — Device Downtime vs Energy Arrival Rate",
-        xaxis_title="Mean energy arrival [kJ/slot]  (×1000 = J/slot)",
+        xaxis_title="Mean energy arrival [kJ/slot]",
         yaxis_title="Inactive fraction (downtime)",
         yaxis=dict(range=[0, None], tickformat=".0%"),
     )
@@ -120,7 +120,7 @@ def exp1_throughput(df: pd.DataFrame, strategies: list[str]) -> go.Figure:
     fig.update_layout(
         **_LAYOUT_BASE,
         title="Exp 1 — Normalised Throughput vs Energy Arrival Rate",
-        xaxis_title="Mean energy arrival [kJ/slot]  (×1000 = J/slot)",
+        xaxis_title="Mean energy arrival [kJ/slot]",
         yaxis_title="Normalised throughput (completed / arrived)",
         yaxis=dict(range=[0, 1.05]),
     )
@@ -244,7 +244,7 @@ def exp3_comparison_bar(df: pd.DataFrame, strategies: list[str]) -> go.Figure:
     ))
     fig.update_layout(
         **_LAYOUT_BASE,
-        title=f"Exp 3 — Downtime Comparison at peak={mid_peak:.2f} kJ/slot",
+        title=f"Exp 3 — Downtime Comparison at peak={mid_peak:.0f} kJ/slot",
         xaxis_title="Strategy",
         yaxis_title="Mean inactive fraction",
         yaxis=dict(tickformat=".0%"),

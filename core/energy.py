@@ -10,9 +10,8 @@ All values returned by sample() and stored in low/high/peak/base are in **kJ**
 (kilojoules per time slot). This matches the battery capacity (E_max [kJ]) and
 job energy consumption (C_E [kJ]) in device.py, so no unit conversion is needed.
 
-Mapping to paper notation (which uses J/slot):
-  UniformEnergyModel(low=0.44, high=0.66)  <->  paper [440, 660] J/slot
-  ENERGY_MEAN_BASELINE = 0.55 kJ/slot      <->  paper 550 J/slot
+The paper's x-axis labels use "J/slot" but the Markov model operates on kJ-scale
+integer energy units. The internal energy values here are in kJ throughout.
 
 Reference: Khoshsirat et al. (GLOBECOM 2024), §III system model.
 """
@@ -76,6 +75,10 @@ class UniformEnergyModel:
         mask = (e_values >= lo) & (e_values <= hi)
         probs[mask] = 1.0 / n_vals
         return probs
+
+    def reseed(self, rng: Generator) -> None:
+        """Replace the internal RNG (used to make batch iterations independent)."""
+        self._rng = rng
 
     def __repr__(self) -> str:
         return f"UniformEnergyModel(low={self.low}, high={self.high})"
@@ -145,6 +148,10 @@ class DiurnalEnergyModel:
     def mean(self) -> float:
         """Expected energy per slot [kJ] (equals vertical shift of sinusoid)."""
         return self._vertical_shift
+
+    def reseed(self, rng: Generator) -> None:
+        """Replace the internal RNG (used to make batch iterations independent)."""
+        self._rng = rng
 
     def __repr__(self) -> str:
         return (

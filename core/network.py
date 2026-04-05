@@ -149,6 +149,9 @@ class Network:
         """
         if seed is not None:
             self._rng = np.random.default_rng(seed)
+            for i, em in enumerate(self._energy_models):
+                em.reseed(np.random.default_rng(seed + 1000 + i))
+            self._scheduler._rng = np.random.default_rng(seed + 2000)
         T = T if T is not None else self.config.T
 
         n_dev = len(self._devices)
@@ -321,15 +324,14 @@ def _default_energy_configs(config: SimConfig) -> list[tuple[float, float]]:
     """
     Generate default per-device energy arrival bounds [kJ/slot].
 
-    Devices are given slightly different means spread linearly from 0.20 to
-    ENERGY_MEAN_BASELINE kJ/slot (0.20-0.55 kJ/slot = 200-550 J/slot),
-    covering the lower half of the paper's sweep axis as a representative
-    baseline for smoke tests and single-run diagnostics.
+    All devices use the same mean (ENERGY_MEAN_BASELINE) with ±ENERGY_SPREAD
+    bounds. Homogeneous by default; pass explicit energy_configs to
+    build_network() for heterogeneous setups.
     """
     n_total = config.N_GROUPS * config.DEVICES_PER_GROUP
-    means = np.linspace(0.20, config.ENERGY_MEAN_BASELINE, n_total)
+    m = config.ENERGY_MEAN_BASELINE
     spread = config.ENERGY_SPREAD
-    return [(float(m * (1 - spread)), float(m * (1 + spread))) for m in means]
+    return [(float(m * (1 - spread)), float(m * (1 + spread)))] * n_total
 
 
 def _initial_power_mode(scheduler: BaseScheduler) -> int:
