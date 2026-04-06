@@ -77,6 +77,7 @@ class Network:
             energy_configs: list[tuple[float, float]] | None = None,
             config: SimConfig = DEFAULT_CONFIG,
             rng: Generator | None = None,
+            e_max_per_device: list[int] | None = None,
     ) -> None:
         self.config = config
         self._scheduler = scheduler
@@ -98,15 +99,25 @@ class Network:
             for low, high in energy_configs
         ]
 
+        # Per-device battery capacities (supports heterogeneous Exp 4)
+        if e_max_per_device is None:
+            e_max_per_device = [config.E_MAX] * n_total
+        if len(e_max_per_device) != n_total:
+            raise ValueError(
+                f"e_max_per_device length ({len(e_max_per_device)}) must equal "
+                f"n_groups × devices_per_group ({n_total})"
+            )
+        self._e_max_per_device = e_max_per_device
+
         # Build devices (device_id = flat index across all groups)
         pm = _initial_power_mode(scheduler)
         self._devices: list[Device] = [
             Device(
                 device_id=i,
-                E_max=config.E_MAX,
+                E_max=e_max_per_device[i],
                 E_th_low=config.E_TH_LOW,
                 E_th_high=config.E_TH_HIGH_MARKOV,
-                initial_battery=config.E_MAX,
+                initial_battery=e_max_per_device[i],
                 initial_power_mode=pm,
             )
             for i in range(n_total)
@@ -291,10 +302,9 @@ class Network:
 
     def _reset(self) -> None:
         """Reset all devices to fully charged, active state."""
-        cfg = self.config
         pm = _initial_power_mode(self._scheduler)
         for device in self._devices:
-            device._battery = cfg.E_MAX
+            device._battery = device.E_max  # respects per-device capacity
             device._gamma = 1
             device._queue = 0
             device._slots_remaining = 0
@@ -326,10 +336,10 @@ def _default_energy_configs(config: SimConfig) -> list[tuple[float, float]]:
 
     All devices use the same mean (ENERGY_MEAN_BASELINE) with ±ENERGY_SPREAD
     bounds. Homogeneous by default; pass explicit energy_configs to
-    build_network() for heterogeneous setups.
+    build_network() or Network() for heterogeneous setups.
     """
     n_total = config.N_GROUPS * config.DEVICES_PER_GROUP
-    m = config.ENERGY_MEAN_BASELINE
+    m = config.ENERGY_MEAN_BASELINE  # kJ/slot (e.g. 0.55 = 550 J/slot)
     spread = config.ENERGY_SPREAD
     return [(float(m * (1 - spread)), float(m * (1 + spread)))] * n_total
 
@@ -354,6 +364,7 @@ def build_network(
         energy_configs: list[tuple[float, float]] | None = None,
         config: SimConfig = DEFAULT_CONFIG,
         seed: int = 42,
+        e_max_per_device: list[int] | None = None,
 ) -> Network:
     """
     Convenience factory to build a Network from a strategy name string.
@@ -366,6 +377,9 @@ def build_network(
         Per-device energy bounds. If None, uses defaults.
     config : SimConfig
     seed : int
+    e_max_per_device : list of int | None
+        Per-device battery capacity [kJ]. If None, all devices use config.E_MAX.
+        Use this for Exp 4 heterogeneous device setups.
 
     Returns
     -------
@@ -445,5 +459,6 @@ def build_network(
         power_controller=pm_controller,
         energy_configs=energy_configs,
         config=config,
+        e_max_per_device=e_max_per_device,
         rng=rng,
     )

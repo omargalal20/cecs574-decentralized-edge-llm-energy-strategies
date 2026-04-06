@@ -11,13 +11,11 @@ All energy quantities are in **kJ** throughout the simulation:
   - Energy per job      : kJ  (C_E = 22–26 kJ per job)
   - Energy model output : kJ/slot
 
-The paper's x-axis labels say "J/slot" but the Markov model operates on integer
-kJ units (E ∈ {0, ..., E_max=100}). The energy arrival values map 1:1 to these
-kJ integers: "550 J/slot" on the paper's axis = 550 kJ/slot in our model.
-This is confirmed by back-calculating from Figure 2a published results.
-
-  Paper Fig 3a sweep:  100–500  on x-axis  →  100–500 kJ/slot here
-  Paper Fig 3b baseline: 550    on x-axis  →  550 kJ/slot here
+The paper expresses energy arrival in J/slot (e.g. Fig 3a x-axis: 50–600 J/slot).
+Divide by 1000 to get kJ/slot used here.
+  Paper Fig 3a sweep:  50–600 J/slot   →  0.05–0.60 kJ/slot here
+  Paper Fig 3b baseline: 550 J/slot    →  0.55 kJ/slot here
+  Diurnal peak (Exp 3):  800 J/slot    →  0.80 kJ/slot here
 """
 
 from dataclasses import dataclass, field
@@ -100,21 +98,21 @@ class SimConfig:
     # -------------------------------------------------------------------------
     # Energy arrival model — values in kJ/slot
     #
-    # At 550 kJ/slot and PM=2 (22 kJ/job, kappa=2):
-    #   harvest over one job = 550 x 2 = 1100 kJ >> 22 kJ consumed
-    #   => battery stays near full at low job rates
-    #   => at high job rates (p->1.0), devices begin to drain and go offline
-    # This matches the paper: Figs 3a/4a sweep from 100-500 on the x-axis.
+    # At 0.55 kJ/slot and PM=2 (22 kJ/job, kappa=2):
+    #   harvest over one job = 0.55 x 2 = 1.1 kJ << 22 kJ consumed
+    #   => devices drain ~20 kJ per job, stressing the 100 kJ battery
+    #   => after ~5 jobs a fully-charged device needs recharge time
+    # Paper's x-axis "550 J/slot" = 0.55 kJ/slot (J ÷ 1000 = kJ).
     # -------------------------------------------------------------------------
-    ENERGY_MEAN_BASELINE: float = 550.0  # Baseline mean [kJ/slot] (paper Fig 3b)
-    ENERGY_SPREAD: float = 0.2           # +/-20% around mean for [low, high] bounds
+    ENERGY_MEAN_BASELINE: float = 0.55  # Baseline mean [kJ/slot] = 550 J/slot
+    ENERGY_SPREAD: float = 0.2          # +/-20% around mean for [low, high] bounds
 
     # -------------------------------------------------------------------------
     # Diurnal energy model (experiment 3 extension) — values in kJ/slot
     # -------------------------------------------------------------------------
-    DIURNAL_PEAK: float = 800.0   # Peak (noon) energy arrival [kJ/slot]
-    DIURNAL_BASE: float = 50.0    # Minimum (night) energy arrival [kJ/slot]
-    DIURNAL_PERIOD: int = 864     # Period in slots (24h / 100s per slot)
+    DIURNAL_PEAK: float = 0.80   # Peak (noon) energy arrival [kJ/slot] = 800 J/slot
+    DIURNAL_BASE: float = 0.05   # Minimum (night) energy arrival [kJ/slot] = 50 J/slot
+    DIURNAL_PERIOD: int = 864    # Period in slots (24h / 100s per slot)
 
 
 # Default config instance — import and use directly for standard runs

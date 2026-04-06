@@ -52,9 +52,9 @@ REQUIRED_COLUMNS = {
 }
 
 FAST_CFG = SimConfig(T=100, N_ITERATIONS=10)
-FAST_ENERGY_MEANS  = [100, 300, 550]       # kJ/slot
+FAST_ENERGY_MEANS  = [0.10, 0.30, 0.55]   # kJ/slot = 100, 300, 550 J/slot
 FAST_ARRIVAL_PROBS = [0.3, 0.6, 1.0]
-FAST_PEAK_VALUES   = [200, 600, 1100]      # kJ/slot diurnal peak
+FAST_PEAK_VALUES   = [0.20, 0.60, 1.10]   # kJ/slot diurnal peak
 FAST_HETERO_SCALES = [0.0, 0.5, 1.0]
 
 

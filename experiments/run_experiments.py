@@ -107,6 +107,7 @@ def _run_strategy(
     config: SimConfig,
     energy_configs: list[tuple[float, float]] | None = None,
     seed_start: int = 0,
+    e_max_per_device: list[int] | None = None,
 ) -> dict[str, float]:
     """
     Run one strategy for N_ITERATIONS replications and return aggregate stats.
@@ -118,6 +119,7 @@ def _run_strategy(
         energy_configs=energy_configs,
         config=config,
         seed=seed_start,
+        e_max_per_device=e_max_per_device,
     )
     return net.run_batch(
         T=config.T,
@@ -293,15 +295,15 @@ def run_exp1(
     """
     Reproduce paper Figures 3a / 4a, extended to all 7 strategies.
 
-    Sweeps average energy arrival from sparse (50 kJ/slot) to abundant
-    (600 kJ/slot). At each value, all 7 strategies run for N_ITERATIONS
-    replications. Job arrival probability is held at p=0.3.
+    Sweeps average energy arrival from sparse (0.05 kJ/slot = 50 J/slot) to
+    abundant (0.60 kJ/slot = 600 J/slot). At each value, all 7 strategies run
+    for N_ITERATIONS replications. Job arrival probability is held at p=0.3.
 
     Parameters
     ----------
     config : SimConfig
     energy_means : list of float | None
-        X-axis values [kJ/slot]. Defaults to 12 evenly-spaced points 50–600.
+        X-axis values [kJ/slot]. Defaults to 12 evenly-spaced points 0.05–0.60.
     verbose : bool
         Print progress to stdout.
 
@@ -310,14 +312,14 @@ def run_exp1(
     DataFrame saved to results/exp1_energy_sweep.csv
     """
     if energy_means is None:
-        energy_means = list(np.linspace(50, 600, 12))
+        energy_means = list(np.linspace(0.05, 0.60, 12))  # kJ/slot = 50–600 J/slot
 
     n_total = config.N_GROUPS * config.DEVICES_PER_GROUP
 
     if verbose:
         print("\n[Exp 1] Energy arrival rate sweep")
         print(f"  strategies: {STRATEGIES}")
-        print(f"  energy_means: {[f'{v:.0f}' for v in energy_means]} kJ/slot")
+        print(f"  energy_means: {[f'{v:.3f}' for v in energy_means]} kJ/slot")
         print(f"  N_ITERATIONS={config.N_ITERATIONS}, T={config.T}")
 
     rows: list[dict] = []
@@ -443,25 +445,25 @@ def run_exp3(
     i.i.d.) affects strategy rankings.
 
     The average energy per slot equals (peak + base) / 2, so the sweep from
-    peak=150 to peak=1150 gives means of 100–600 J/slot — matching Exp 1's
-    energy range for direct comparison.
+    peak=0.15 to peak=1.15 kJ/slot gives means of 0.10–0.60 kJ/slot —
+    matching Exp 1's energy range for direct comparison.
 
     Parameters
     ----------
     config : SimConfig
     peak_values : list of float | None
-        Diurnal peak energy [kJ/slot]. Defaults to 12 values 150–1150.
+        Diurnal peak energy [kJ/slot]. Defaults to 12 values 0.15–1.15.
     verbose : bool
     """
     if peak_values is None:
-        # Peak 150->1150 kJ/slot gives mean 100->600 kJ/slot (matching Exp 1 range)
-        peak_values = list(np.linspace(150, 1150, 12))
+        # Peak 0.15->1.15 kJ/slot gives mean 0.10->0.60 kJ/slot (matching Exp 1 range)
+        peak_values = list(np.linspace(0.15, 1.15, 12))
 
     if verbose:
         print("\n[Exp 3] Diurnal energy model (novel)")
         print(f"  strategies: {STRATEGIES}")
-        print(f"  peak_values: {[f'{v:.0f}' for v in peak_values]} kJ/slot")
-        print(f"  base={config.DIURNAL_BASE:.0f} kJ/slot, period={config.DIURNAL_PERIOD} slots (24h)")
+        print(f"  peak_values: {[f'{v:.3f}' for v in peak_values]} kJ/slot")
+        print(f"  base={config.DIURNAL_BASE:.3f} kJ/slot, period={config.DIURNAL_PERIOD} slots (24h)")
         print(f"  N_ITERATIONS={config.N_ITERATIONS}, T={config.T}")
 
     rows: list[dict] = []
@@ -543,11 +545,14 @@ def run_exp4(
             e_max_values = [config.E_MAX] * n_total
             energy_means = [config.ENERGY_MEAN_BASELINE] * n_total
         else:
-            e_max_values = rng_cfg.uniform(
-                50, 50 + scale * 100, size=n_total
-            ).tolist()
+            # E_max spans 50–150 kJ at full scale
+            e_max_values = [
+                int(round(v))
+                for v in rng_cfg.uniform(50, 50 + scale * 100, size=n_total).tolist()
+            ]
+            # Energy means span 0.10–0.55 kJ/slot at full scale
             energy_means = rng_cfg.uniform(
-                100, 100 + scale * 450, size=n_total
+                0.10, 0.10 + scale * 0.45, size=n_total
             ).tolist()
 
         energy_configs = [
@@ -556,9 +561,7 @@ def run_exp4(
             for m in energy_means
         ]
 
-        # Use the mean E_max across devices for the Markov model.
-        # Build a fresh SimConfig and override only E_MAX — this avoids
-        # issues with dataclass field factories when copying via __dict__.
+        # Config used for Markov model — use mean E_max as the reference capacity.
         mean_e_max = int(round(np.mean(e_max_values)))
         hetero_config = SimConfig(
             E_MAX=mean_e_max,
@@ -586,6 +589,7 @@ def run_exp4(
                 config=hetero_config,
                 energy_configs=energy_configs,
                 seed_start=0,
+                e_max_per_device=e_max_values,
             )
             elapsed = time.time() - t0
             if verbose:
@@ -643,9 +647,9 @@ def main(
 
     if fast:
         cfg = SimConfig(T=100, N_ITERATIONS=10)
-        energy_means  = [100, 300, 550]      # kJ/slot
+        energy_means  = [0.10, 0.30, 0.55]   # kJ/slot = 100, 300, 550 J/slot
         arrival_probs = [0.3, 0.6, 1.0]
-        peak_values   = [200, 600, 1100]    # kJ/slot diurnal peak
+        peak_values   = [0.20, 0.60, 1.10]  # kJ/slot diurnal peak
         hetero_scales = [0.0, 0.5, 1.0]
         print("\n[fast mode] T=100, N_ITERATIONS=10, 3 sweep points per axis")
     else:

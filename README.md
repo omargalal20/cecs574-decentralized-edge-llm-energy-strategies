@@ -70,23 +70,26 @@ The seven strategies let the paper make three concrete claims:
 
 | # | What it sweeps | What it proves | Paper equivalent |
 |---|---|---|---|
-| **Exp 1** | Mean energy arrival (50–600 kJ/slot) at fixed p=0.3 | Static strategies diverge first as energy becomes scarce | Figs 3a / 4a (extended) |
+| **Exp 1** | Mean energy arrival (0.05–0.60 kJ/slot = 50–600 J/slot) at fixed p=0.3 | Static strategies diverge first as energy becomes scarce | Figs 3a / 4a (extended) |
 | **Exp 2** | Job arrival probability p (0.1–1.0) at fixed energy | Dynamic strategies drop far fewer jobs under heavy load | Figs 3b / 4b (extended) |
-| **Exp 3** | Diurnal peak energy (150–1150 kJ/slot) | D4 outperforms D2 under correlated solar energy; D1 degrades worst | Novel |
+| **Exp 3** | Diurnal peak energy (0.15–1.15 kJ/slot) | D4 outperforms D2 under correlated solar energy; D1 degrades worst | Novel |
 | **Exp 4** | Heterogeneity scale (0.0–1.0) | D4 adapts naturally to different battery sizes; D2 thresholds do not scale | Novel |
 
 ### Expected Results
 
 **Experiments 1 & 2** (validation against paper):
+
 - Downtime ranking at low energy: `D2+D3 < D1 < S2 < S1 < S3`
 - Throughput ranking: `D2+D3 > D1 > S2 > S3 > S1`
 - At high energy all strategies converge toward zero downtime
 
 **Experiment 3** (novel):
+
 - D4 downtime advantage over D2 should be *larger* under diurnal than i.i.d. conditions
 - D1 should degrade most — its offline weights assume i.i.d. energy
 
 **Experiment 4** (novel):
+
 - D4 naturally handles heterogeneous E_max (proportional weighting adjusts automatically)
 - D2's fixed 10 kJ threshold hits proportionally earlier on small-battery devices
 
@@ -141,11 +144,11 @@ All energy values in this codebase are in **kJ** (kilojoules):
 | Energy per job — 15W | 26 kJ | 26 kJ |
 | Energy per job — 30W | 22 kJ | 22 kJ |
 | Energy per job — 60W | 23 kJ | 23 kJ |
-| Energy arrival baseline | 550 kJ/slot | 550 on x-axis |
-| Experiment 1 sweep range | 50–600 kJ/slot | 100–500 on x-axis |
-| Diurnal peak | 800 kJ/slot | — (novel) |
+| Energy arrival baseline | 0.55 kJ/slot | 550 J/slot |
+| Experiment 1 sweep range | 0.05–0.60 kJ/slot | 50–600 J/slot |
+| Diurnal peak | 0.80 kJ/slot | 800 J/slot |
 
-The paper's x-axis labels say "J/slot" but the values map directly to integer kJ units on the Markov model's battery grid (E in {0, ..., 100}).
+The paper reports energy arrival in J/slot. Divide by 1000 to get kJ/slot used here.
 
 ---
 
@@ -254,7 +257,7 @@ All parameters live in `experiments/config.py` and can be overridden when constr
 | `N_GROUPS` | 3 | Number of device groups |
 | `DEVICES_PER_GROUP` | 3 | Devices per group (9 total) |
 | `TARGET_RISK` | 0.01 | Max acceptable downtime risk ξ_lim (1%) |
-| `ENERGY_MEAN_BASELINE` | 550 kJ/slot | Baseline energy arrival |
+| `ENERGY_MEAN_BASELINE` | 0.55 kJ/slot | Baseline energy arrival (= 550 J/slot) |
 
 ---
 
