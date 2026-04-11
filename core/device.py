@@ -8,11 +8,16 @@ a renewable energy source (e.g., solar panel).
 
 State at stage m: S_m = (Q_m, E_m, γ_m)
   Q_m  ∈ {0, 1}          — queue occupancy (0 = empty, 1 = job present)
-  E_m  ∈ {0, …, E_max}   — discrete battery level [kJ]
+  E_m  ∈ [0, E_max]      — continuous battery level [kJ]
   γ_m  ∈ {0, 1}          — mode (0 = power-saving, 1 = active)
 
 Battery update (Equation 1):
   E_{m+1} = clip(E_m + ΔIE_m − C_E(PM), 0, E_max)
+
+Battery is stored as a float to support sub-kJ energy arrivals (e.g.
+0.05–0.60 kJ/slot = 50–600 J/slot from the paper's sweep). The Markov model
+uses its own discrete integer grid independently; the simulation battery
+tracks the true continuous value so varying energy input has visible effect.
 
 C_E(PM) is only subtracted in processing states (Q=1, γ=1). For all other
 states the consumed energy is 0 — the device is either idle or power-saving.
@@ -56,10 +61,10 @@ class Device:
     def __init__(
             self,
             device_id: int,
-            E_max: int = 100,
-            E_th_low: int = 10,
-            E_th_high: int = 20,
-            initial_battery: int | None = None,
+            E_max: float = 100,
+            E_th_low: float = 10,
+            E_th_high: float = 20,
+            initial_battery: float | None = None,
             initial_power_mode: int = 2,
     ) -> None:
         if E_th_low >= E_th_high:
@@ -74,7 +79,7 @@ class Device:
         self.E_th_low = E_th_low
         self.E_th_high = E_th_high
 
-        self._battery: int = E_max if initial_battery is None else int(initial_battery)
+        self._battery: float = float(E_max if initial_battery is None else initial_battery)
         self._power_mode: int = initial_power_mode  # 1, 2, or 3 (active modes)
         self._gamma: int = 1  # 0 = power-saving, 1 = active
         self._queue: int = 0  # 0 = empty, 1 = job present
@@ -121,13 +126,12 @@ class Device:
                 self._queue = 0
                 job_completed = True
 
-        # Equation 1 battery update
-        new_battery = np.clip(
+        # Equation 1 battery update (continuous float — no rounding)
+        self._battery = float(np.clip(
             self._battery + harvested_kj - consumed_kj,
-            0,
+            0.0,
             self.E_max,
-        )
-        self._battery = int(round(new_battery))
+        ))
 
         # Hysteresis power-saving logic
         self._update_gamma()
@@ -185,7 +189,7 @@ class Device:
     # ------------------------------------------------------------------
 
     @property
-    def battery(self) -> int:
+    def battery(self) -> float:
         """Current battery level [kJ]."""
         return self._battery
 
@@ -218,8 +222,8 @@ class Device:
         """True when the device is in power-saving mode (γ=0)."""
         return self._gamma == 0
 
-    def state_tuple(self) -> tuple[int, int, int]:
-        """Return the state tuple (Q, E, γ) as used in the semi-Markov model."""
+    def state_tuple(self) -> tuple[int, float, int]:
+        """Return the state tuple (Q, E, γ). E is continuous [kJ]."""
         return (self._queue, self._battery, self._gamma)
 
     # ------------------------------------------------------------------
