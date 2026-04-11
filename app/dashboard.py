@@ -18,12 +18,20 @@ Pages
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-from plots import (
+# Make `app/` importable regardless of the working directory Streamlit uses.
+# On Streamlit Community Cloud the CWD is the repo root, so `app/` must be
+# on sys.path for the bare `plots` module to resolve.
+_APP_DIR = Path(__file__).parent
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
+
+from plots import (  # noqa: E402
     STRATEGY_COLORS,
     STRATEGY_LABELS,
     exp1_battery,
@@ -90,10 +98,6 @@ def load_all() -> dict[str, pd.DataFrame | None]:
 # ---------------------------------------------------------------------------
 
 def sidebar(dfs: dict) -> tuple[str, list[str]]:
-    st.sidebar.image(
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Golden_Gate_Bridge_20100906_03.jpg/1px-x.gif",
-        width=1,
-    )
     st.sidebar.title("⚡ Edge LLM Energy")
     st.sidebar.caption(
         "Comparative Analysis of Static & Dynamic Energy Management "
