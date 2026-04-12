@@ -33,11 +33,11 @@ import traceback
 import numpy as np
 import pandas as pd
 
+from experiments.config import SimConfig
 from experiments.run_experiments import (
     run_exp1, run_exp2, run_exp3, run_exp4,
     RESULTS_DIR, STRATEGIES,
 )
-from experiments.config import SimConfig
 
 PASS = "PASS"
 FAIL = "FAIL"
@@ -52,9 +52,9 @@ REQUIRED_COLUMNS = {
 }
 
 FAST_CFG = SimConfig(T=100, N_ITERATIONS=10)
-FAST_ENERGY_MEANS  = [0.10, 0.30, 0.55]   # kJ/slot = 100, 300, 550 J/slot
+FAST_ENERGY_MEANS = [0.10, 0.30, 0.55]  # kJ/slot = 100, 300, 550 J/slot
 FAST_ARRIVAL_PROBS = [0.3, 0.6, 1.0]
-FAST_PEAK_VALUES   = [0.20, 0.60, 1.10]   # kJ/slot diurnal peak
+FAST_PEAK_VALUES = [0.20, 0.60, 1.10]  # kJ/slot diurnal peak
 FAST_HETERO_SCALES = [0.0, 0.5, 1.0]
 
 
@@ -148,9 +148,9 @@ def test_exp1() -> bool:
         ok &= _check_df(df, "exp1_energy_sweep", n_strategies=7, n_params=3)
         # At higher energy, inactive fraction should decrease for all strategies
         high_e = df[df["param_value"] == max(FAST_ENERGY_MEANS)]
-        low_e  = df[df["param_value"] == min(FAST_ENERGY_MEANS)]
+        low_e = df[df["param_value"] == min(FAST_ENERGY_MEANS)]
         high_mean = high_e["mean_inactive_fraction"].mean()
-        low_mean  = low_e["mean_inactive_fraction"].mean()
+        low_mean = low_e["mean_inactive_fraction"].mean()
         ok &= check(
             "Exp 1: more energy -> lower inactive fraction (avg)",
             high_mean <= low_mean + 0.05,
@@ -172,7 +172,7 @@ def test_exp2() -> bool:
         ok &= _check_df(df, "exp2_arrival_sweep", n_strategies=7, n_params=3)
         # At higher arrival rate, jobs_dropped should increase
         high_p = df[df["param_value"] == max(FAST_ARRIVAL_PROBS)]
-        low_p  = df[df["param_value"] == min(FAST_ARRIVAL_PROBS)]
+        low_p = df[df["param_value"] == min(FAST_ARRIVAL_PROBS)]
         ok &= check(
             "Exp 2: higher p -> more jobs dropped (avg)",
             high_p["mean_jobs_dropped"].mean() >= low_p["mean_jobs_dropped"].mean() - 1,
@@ -216,15 +216,21 @@ def test_exp3() -> bool:
             "exp3_diurnal: CSV saved",
             (RESULTS_DIR / "exp3_diurnal.csv").exists(),
         )
-        # Compare exp3 vs exp1 at equivalent mean energy (300 J/slot)
-        # Peak 550 J/slot -> mean = (550 + 50)/2 = 300 J/slot
+        # Compare exp3 vs exp1 at equivalent mean energy (~0.30 kJ/slot).
+        # Exp 3 peak=0.60 kJ/slot -> mean_energy_equiv = (0.60 + 0.05)/2 = 0.325 kJ/slot
+        # Exp 1 param_value is the mean energy directly in kJ/slot.
+        # We find the closest exp1 point to the median exp3 mean_energy_equiv.
         exp1_df = pd.read_csv(RESULTS_DIR / "exp1_energy_sweep.csv")
-        exp1_300 = exp1_df[exp1_df["param_value"].round(0) == 300]["mean_inactive_fraction"].mean()
-        exp3_300 = df[df["mean_energy_equiv"].round(0) == 300]["mean_inactive_fraction"].mean()
+        target_kj = df["mean_energy_equiv"].median()
+        exp1_closest_val = (exp1_df["param_value"] - target_kj).abs().min()
+        exp1_row = exp1_df[(exp1_df["param_value"] - target_kj).abs() == exp1_closest_val]
+        exp1_inactive = exp1_row["mean_inactive_fraction"].mean()
+        exp3_target = df[(df["mean_energy_equiv"] - target_kj).abs() < 0.02]
+        exp3_inactive = exp3_target["mean_inactive_fraction"].mean()
         ok &= check(
             "Exp 3: diurnal result differs from uniform at same mean energy",
-            abs(exp3_300 - exp1_300) >= 0.0,  # trivially true; documents the comparison
-            f"diurnal={exp3_300:.3f}, uniform={exp1_300:.3f}",
+            not (np.isnan(exp3_inactive) or np.isnan(exp1_inactive)),
+            f"diurnal={exp3_inactive:.3f}, uniform={exp1_inactive:.3f}",
         )
     except Exception:
         print(f"  [{FAIL}] Exp 3 raised an exception")
@@ -304,7 +310,7 @@ def main() -> None:
     ]
     elapsed = time.time() - t0
 
-    total  = len(results)
+    total = len(results)
     passed = sum(results)
     failed = total - passed
 

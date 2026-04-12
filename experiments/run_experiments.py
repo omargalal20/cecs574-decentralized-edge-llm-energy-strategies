@@ -66,7 +66,7 @@ import numpy as np
 import pandas as pd
 
 from core.energy import UniformEnergyModel, DiurnalEnergyModel
-from core.network import Network, build_network, _default_energy_configs
+from core.network import Network, build_network
 from core.strategies import (
     StaticScheduler,
     LongTermScheduler,
@@ -85,9 +85,9 @@ STRATEGIES = ["S1", "S2", "S3", "D1", "D2", "D3", "D4"]
 # ---------------------------------------------------------------------------
 
 def _make_energy_configs(
-    mean_energy: float,
-    n_total: int,
-    spread: float = 0.2,
+        mean_energy: float,
+        n_total: int,
+        spread: float = 0.2,
 ) -> list[tuple[float, float]]:
     """
     Build per-device uniform energy bounds around a shared mean.
@@ -98,16 +98,16 @@ def _make_energy_configs(
     """
     rng = np.random.default_rng(0)  # fixed seed for reproducibility
     means = mean_energy + rng.uniform(-0.1 * mean_energy, 0.1 * mean_energy, size=n_total)
-    means = np.clip(means, 1.0, None)
+    means = np.clip(means, 0.001, None)  # 0.001 kJ/slot = 1 J/slot minimum
     return [(float(m * (1 - spread)), float(m * (1 + spread))) for m in means]
 
 
 def _run_strategy(
-    strategy: str,
-    config: SimConfig,
-    energy_configs: list[tuple[float, float]] | None = None,
-    seed_start: int = 0,
-    e_max_per_device: list[int] | None = None,
+        strategy: str,
+        config: SimConfig,
+        energy_configs: list[tuple[float, float]] | None = None,
+        seed_start: int = 0,
+        e_max_per_device: list[int] | None = None,
 ) -> dict[str, float]:
     """
     Run one strategy for N_ITERATIONS replications and return aggregate stats.
@@ -129,12 +129,12 @@ def _run_strategy(
 
 
 def _run_strategy_diurnal(
-    strategy: str,
-    config: SimConfig,
-    peak: float,
-    base: float,
-    period_slots: int,
-    seed_start: int = 0,
+        strategy: str,
+        config: SimConfig,
+        peak: float,
+        base: float,
+        period_slots: int,
+        seed_start: int = 0,
 ) -> dict[str, float]:
     """
     Run one strategy with a DiurnalEnergyModel and return aggregate stats.
@@ -256,26 +256,26 @@ def _build_scheduler(strategy, uniform_models, config, rng):
 def _aggregate(per_iter: list[dict]) -> dict[str, float]:
     """Aggregate a list of per-iteration metric dicts into mean ± std."""
     # Scalar totals over the run
-    completed  = np.array([r["jobs_completed"].sum()    for r in per_iter])
-    dropped    = np.array([r["jobs_dropped"].sum()      for r in per_iter])
-    arrived    = np.array([r["jobs_arrived"].sum()      for r in per_iter])
-    inactive   = np.array([r["inactive_fraction"].mean() for r in per_iter])
-    battery    = np.array([r["batteries"].mean()         for r in per_iter])
+    completed = np.array([r["jobs_completed"].sum() for r in per_iter])
+    dropped = np.array([r["jobs_dropped"].sum() for r in per_iter])
+    arrived = np.array([r["jobs_arrived"].sum() for r in per_iter])
+    inactive = np.array([r["inactive_fraction"].mean() for r in per_iter])
+    battery = np.array([r["batteries"].mean() for r in per_iter])
 
     # Normalised throughput: completed / arrived (avoid divide-by-zero)
     throughput = np.where(arrived > 0, completed / arrived, 0.0)
 
     return {
         "mean_inactive_fraction": float(inactive.mean()),
-        "std_inactive_fraction":  float(inactive.std()),
-        "mean_throughput":        float(throughput.mean()),
-        "std_throughput":         float(throughput.std()),
-        "mean_jobs_dropped":      float(dropped.mean()),
-        "std_jobs_dropped":       float(dropped.std()),
-        "mean_jobs_completed":    float(completed.mean()),
-        "std_jobs_completed":     float(completed.std()),
-        "mean_battery":           float(battery.mean()),
-        "std_battery":            float(battery.std()),
+        "std_inactive_fraction": float(inactive.std()),
+        "mean_throughput": float(throughput.mean()),
+        "std_throughput": float(throughput.std()),
+        "mean_jobs_dropped": float(dropped.mean()),
+        "std_jobs_dropped": float(dropped.std()),
+        "mean_jobs_completed": float(completed.mean()),
+        "std_jobs_completed": float(completed.std()),
+        "mean_battery": float(battery.mean()),
+        "std_battery": float(battery.std()),
     }
 
 
@@ -288,9 +288,9 @@ def _progress(strategy: str, param_name: str, value: float, elapsed: float) -> N
 # ---------------------------------------------------------------------------
 
 def run_exp1(
-    config: SimConfig = DEFAULT_CONFIG,
-    energy_means: list[float] | None = None,
-    verbose: bool = True,
+        config: SimConfig = DEFAULT_CONFIG,
+        energy_means: list[float] | None = None,
+        verbose: bool = True,
 ) -> pd.DataFrame:
     """
     Reproduce paper Figures 3a / 4a, extended to all 7 strategies.
@@ -337,7 +337,7 @@ def run_exp1(
             if verbose:
                 _progress(strategy, "mean_E", mean_e, elapsed)
             rows.append({
-                "strategy":    strategy,
+                "strategy": strategy,
                 "param_value": mean_e,
                 **agg,
             })
@@ -352,9 +352,9 @@ def run_exp1(
 # ---------------------------------------------------------------------------
 
 def run_exp2(
-    config: SimConfig = DEFAULT_CONFIG,
-    arrival_probs: list[float] | None = None,
-    verbose: bool = True,
+        config: SimConfig = DEFAULT_CONFIG,
+        arrival_probs: list[float] | None = None,
+        verbose: bool = True,
 ) -> pd.DataFrame:
     """
     Reproduce paper Figures 3b / 4b, extended to all 7 strategies.
@@ -416,7 +416,7 @@ def run_exp2(
             if verbose:
                 _progress(strategy, "p", p, elapsed)
             rows.append({
-                "strategy":    strategy,
+                "strategy": strategy,
                 "param_value": p,
                 **agg,
             })
@@ -431,9 +431,9 @@ def run_exp2(
 # ---------------------------------------------------------------------------
 
 def run_exp3(
-    config: SimConfig = DEFAULT_CONFIG,
-    peak_values: list[float] | None = None,
-    verbose: bool = True,
+        config: SimConfig = DEFAULT_CONFIG,
+        peak_values: list[float] | None = None,
+        verbose: bool = True,
 ) -> pd.DataFrame:
     """
     Novel experiment: diurnal (sinusoidal) energy arrivals.
@@ -483,8 +483,8 @@ def run_exp3(
                 mean_e = (peak + config.DIURNAL_BASE) / 2.0
                 _progress(strategy, "peak", peak, elapsed)
             rows.append({
-                "strategy":          strategy,
-                "param_value":       peak,
+                "strategy": strategy,
+                "param_value": peak,
                 "mean_energy_equiv": (peak + config.DIURNAL_BASE) / 2.0,
                 **agg,
             })
@@ -499,9 +499,9 @@ def run_exp3(
 # ---------------------------------------------------------------------------
 
 def run_exp4(
-    config: SimConfig = DEFAULT_CONFIG,
-    hetero_scales: list[float] | None = None,
-    verbose: bool = True,
+        config: SimConfig = DEFAULT_CONFIG,
+        hetero_scales: list[float] | None = None,
+        verbose: bool = True,
 ) -> pd.DataFrame:
     """
     Novel experiment: heterogeneous devices with different E_max and solar strength.
@@ -595,9 +595,9 @@ def run_exp4(
             if verbose:
                 _progress(strategy, "scale", scale, elapsed)
             rows.append({
-                "strategy":    strategy,
+                "strategy": strategy,
                 "param_value": scale,
-                "mean_e_max":  float(np.mean(e_max_values)),
+                "mean_e_max": float(np.mean(e_max_values)),
                 "mean_energy": float(np.mean(energy_means)),
                 **agg,
             })
@@ -624,8 +624,8 @@ def _save(df: pd.DataFrame, filename: str, verbose: bool = True) -> None:
 # ---------------------------------------------------------------------------
 
 def main(
-    fast: bool = False,
-    experiments: list[int] | None = None,
+        fast: bool = False,
+        experiments: list[int] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """
     Run all four experiments sequentially.
@@ -647,16 +647,16 @@ def main(
 
     if fast:
         cfg = SimConfig(T=100, N_ITERATIONS=10)
-        energy_means  = [0.10, 0.30, 0.55]   # kJ/slot = 100, 300, 550 J/slot
+        energy_means = [0.10, 0.30, 0.55]  # kJ/slot = 100, 300, 550 J/slot
         arrival_probs = [0.3, 0.6, 1.0]
-        peak_values   = [0.20, 0.60, 1.10]  # kJ/slot diurnal peak
+        peak_values = [0.20, 0.60, 1.10]  # kJ/slot diurnal peak
         hetero_scales = [0.0, 0.5, 1.0]
         print("\n[fast mode] T=100, N_ITERATIONS=10, 3 sweep points per axis")
     else:
         cfg = DEFAULT_CONFIG
-        energy_means  = None
+        energy_means = None
         arrival_probs = None
-        peak_values   = None
+        peak_values = None
         hetero_scales = None
 
     t_total = time.time()

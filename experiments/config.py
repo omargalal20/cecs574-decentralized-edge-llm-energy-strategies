@@ -26,11 +26,11 @@ class SimConfig:
     # -------------------------------------------------------------------------
     # Battery / energy storage
     # -------------------------------------------------------------------------
-    E_MAX: int = 100          # Maximum battery capacity [kJ]
+    E_MAX: int = 100  # Maximum battery capacity [kJ]
 
     # Power-saving mode thresholds (trigger hysteresis on device downtime)
     # Enter power-saving when E < E_TH_LOW; exit when E > E_TH_HIGH_MARKOV.
-    E_TH_LOW: int = 10        # Entry threshold [kJ] — 10% of E_MAX (paper §V)
+    E_TH_LOW: int = 10  # Entry threshold [kJ] — 10% of E_MAX (paper §V)
     # Exit threshold for the Markov model [kJ].
     # Not stated explicitly in the paper; 20 kJ (20% of E_MAX) is used here
     # as a defensible choice (2× the entry threshold, enforcing hysteresis).
@@ -40,20 +40,20 @@ class SimConfig:
     # D3 dynamic power-mode thresholds (§V, found by manual exploration)
     # These are separate from the Markov-model thresholds above.
     # -------------------------------------------------------------------------
-    PM_TH_15_TO_30_PCT: float = 0.40   # Battery fraction: switch 15W -> 30W
-    PM_TH_30_TO_60_PCT: float = 0.60   # Battery fraction: switch 30W -> 60W
+    PM_TH_15_TO_30_PCT: float = 0.40  # Battery fraction: switch 15W -> 30W
+    PM_TH_30_TO_60_PCT: float = 0.60  # Battery fraction: switch 30W -> 60W
 
     # -------------------------------------------------------------------------
     # Time
     # -------------------------------------------------------------------------
-    DELTA: int = 100          # Slot duration delta [seconds]
-    T: int = 100              # Simulation length [stages/slots]
+    DELTA: int = 100  # Slot duration delta [seconds]
+    T: int = 100  # Simulation length [stages/slots]
     N_ITERATIONS: int = 1000  # Monte Carlo iterations per experiment
 
     # -------------------------------------------------------------------------
     # Job arrival model (Bernoulli)
     # -------------------------------------------------------------------------
-    JOB_ARRIVAL_PROB: float = 0.3   # Baseline p (paper Fig 3a sweep baseline)
+    JOB_ARRIVAL_PROB: float = 0.3  # Baseline p (paper Fig 3a sweep baseline)
 
     # -------------------------------------------------------------------------
     # Power modes — empirical measurements on Nvidia Jetson AGX Orin (§V)
@@ -78,9 +78,9 @@ class SimConfig:
     # Total system energy consumed per job [kJ] (race-to-idle effect accounts
     # for fixed-overhead subsystems running for the full job duration)
     ENERGY_PER_JOB: dict = field(default_factory=lambda: {
-        1: 26,   # 15W x 300s + fixed overhead -> 26 kJ
-        2: 22,   # 30W x 200s + fixed overhead -> 22 kJ
-        3: 23,   # 60W x 100s + fixed overhead -> 23 kJ
+        1: 26,  # 15W x 300s + fixed overhead -> 26 kJ
+        2: 22,  # 30W x 200s + fixed overhead -> 22 kJ
+        3: 23,  # 60W x 100s + fixed overhead -> 23 kJ
     })
 
     # -------------------------------------------------------------------------
@@ -92,8 +92,8 @@ class SimConfig:
     # -------------------------------------------------------------------------
     # Markov model / scheduling
     # -------------------------------------------------------------------------
-    TARGET_RISK: float = 0.01    # xi_lim threshold (1% downtime risk, §IV)
-    ALPHA: float = 1.0           # D2 adaptive scheduling tuning parameter
+    TARGET_RISK: float = 0.01  # xi_lim threshold (1% downtime risk, §IV)
+    ALPHA: float = 1.0  # D2 adaptive scheduling tuning parameter
 
     # -------------------------------------------------------------------------
     # Energy arrival model — values in kJ/slot
@@ -105,14 +105,17 @@ class SimConfig:
     # Paper's x-axis "550 J/slot" = 0.55 kJ/slot (J ÷ 1000 = kJ).
     # -------------------------------------------------------------------------
     ENERGY_MEAN_BASELINE: float = 0.55  # Baseline mean [kJ/slot] = 550 J/slot
-    ENERGY_SPREAD: float = 0.2          # +/-20% around mean for [low, high] bounds
+    ENERGY_SPREAD: float = 0.2  # +/-20% around mean for [low, high] bounds
 
     # -------------------------------------------------------------------------
     # Diurnal energy model (experiment 3 extension) — values in kJ/slot
     # -------------------------------------------------------------------------
-    DIURNAL_PEAK: float = 0.80   # Peak (noon) energy arrival [kJ/slot] = 800 J/slot
-    DIURNAL_BASE: float = 0.05   # Minimum (night) energy arrival [kJ/slot] = 50 J/slot
-    DIURNAL_PERIOD: int = 864    # Period in slots (24h / 100s per slot)
+    DIURNAL_PEAK: float = 0.80  # Peak (noon) energy arrival [kJ/slot] = 800 J/slot
+    DIURNAL_BASE: float = 0.05  # Minimum (night) energy arrival [kJ/slot] = 50 J/slot
+    DIURNAL_PERIOD: int = 100  # Period in slots — set to T so each run sees one full
+    # sinusoidal cycle. (Real 24h = 864 slots at 100s/slot;
+    # 864 is correct for full-length runs but makes the
+    # diurnal structure invisible at T=100.)
 
 
 # Default config instance — import and use directly for standard runs
