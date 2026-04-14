@@ -48,7 +48,7 @@ The strategies form a deliberate ladder from simplest to most adaptive:
 | **S2** | Fixed 30W | Always 30W (κ=2 slots/job, 22 kJ/job) | Uniform random | Baseline |
 | **S3** | Fixed 60W | Always 60W (κ=1 slot/job, 23 kJ/job) | Uniform random | Baseline |
 | **D1** | Long-term | Starts at 30W | Markov-derived q_lim weights, computed offline once | Paper §IV |
-| **D2** | Adaptive | Starts at 30W | D1 weights + real-time penalty for energy-stressed (15W) devices | Paper §IV Algorithm 1 |
+| **D2** | Adaptive | Starts at 30W | D1 weights & real-time penalty for energy-stressed (15W) devices | Paper §IV Algorithm 1 |
 | **D3** | Dynamic PM | Threshold-based switching (40%→15W, 60%→30W, ≥60%→60W) | D1 weights | Paper §III/V |
 | **D4** | Energy-proportional | Not fixed (per-device proportional) | Continuously weighted by live battery level | **This work** |
 
