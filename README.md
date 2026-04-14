@@ -265,10 +265,16 @@ All parameters live in `experiments/config.py` and can be overridden when constr
 
 | Paper | Role in this project |
 |---|---|
-| Khoshsirat, Perin, Rossi. *Decentralized LLM Inference over Edge Networks with Energy Harvesting.* IEEE GLOBECOM 2024. [arXiv:2408.15907](https://arxiv.org/abs/2408.15907) | Primary reference — system model, Markov framework, D1/D2/D3 strategies |
-| Griggs et al. *DynamoLLM: Designing LLM Inference Clusters for Performance and Energy Efficiency.* HPCA 2025. | Race-to-idle effect; motivation for dynamic power management |
-| Tian et al. *CLONE: Customizing LLMs for Efficient Latency-Aware Inference at the Edge.* USENIX ATC 2025. | Per-device DVFS for LLM inference; motivation for D3/D4 |
-| Radovanovic et al. *Spatio-temporal load shifting for truly clean computing.* 2024. | Energy-proportional scheduling precedent for D4 |
+| Khoshsirat, Perin, Rossi. *Decentralized LLM Inference over Edge Networks with Energy Harvesting.* IEEE GLOBECOM 2024. | Primary reference — semi‑Markov model, scheduling baselines (D1/D2/D3), system topology |
+| Tian et al. *CLONE: Customizing LLMs for Efficient Latency‑Aware Inference at the Edge.* USENIX ATC 2025. | DVFS‑based dynamic power management; motivates device‑level adaptation |
+| Griggs et al. *DynamoLLM: Designing LLM Inference Clusters for Performance and Energy Efficiency.* HPCA 2025. | Race‑to‑idle effect; supports power‑mode modeling and dynamic reconfiguration |
+| Stojkovic et al. *Energy‑Performance Tradeoffs in LLM Serving.* | Characterization of GPU frequency, batch size, and parallelism impacts on energy |
+| HarvNet (Islam et al.). *Energy‑Adaptive Multi‑Exit DNN Inference for Solar‑Powered Systems.* | Demonstrates importance of real‑time adaptation under variable solar energy |
+| EdgeShard. *Dynamic Programming–Based Partitioning for Edge/Cloud Hybrid LLM Inference.* | Decentralized inference across heterogeneous devices; motivates multi‑device pipeline |
+| Petals. *Collaborative Inference of Large Language Models over the Internet.* | Peer‑to‑peer LLM layer distribution; foundational decentralized inference work |
+| LinguaLinked. *Decentralized LLM Inference on Mobile Devices with Runtime Load Balancing.* | Mobile‑focused decentralized inference; supports heterogeneity considerations |
+| Husom et al. *Energy‑Efficient LLM Inference via Quantization on Low‑Power Devices.* | Static energy‑reduction baselines; complements dynamic strategies |
+| Islam et al. *Checkpoint‑Free Intermittent Inference for Energy‑Harvesting Devices.* | Adaptive model‑complexity control for intermittent power environments |
 
 ---
 
