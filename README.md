@@ -49,7 +49,7 @@ The strategies form a deliberate ladder from simplest to most adaptive:
 | **S3** | Fixed 60W | Always 60W (κ=1 slot/job, 23 kJ/job) | Uniform random | Baseline |
 | **D1** | Long-term | Starts at 30W | Markov-derived q_lim weights, computed offline once | Paper §IV |
 | **D2** | Adaptive | Starts at 30W | D1 weights & real-time penalty for energy-stressed (15W) devices | Paper §IV Algorithm 1 |
-| **D3** | Dynamic PM | Threshold-based switching (40%→15W, 60%→30W, ≥60%→60W) | D1 weights | Paper §III/V |
+| **D3** | Dynamic PM | Threshold-based switching (<40%→15W, 40–60%→30W, >60%→60W) | D1 weights | Paper §III/V |
 | **D4** | Energy-proportional | Not fixed (per-device proportional) | Continuously weighted by live battery level | **This work** |
 
 > **Race-to-idle effect (confirmed from paper):** S3 at 60W uses only 23 kJ/job despite triple the wattage of S2 (22 kJ/job), because it finishes faster and fixed-overhead subsystems (memory, networking) run for less time. This is not a bug — it is a real physical phenomenon documented by DynamoLLM (HPCA 2025).
@@ -270,7 +270,7 @@ All parameters live in `experiments/config.py` and can be overridden when constr
 |---|---|
 | Khoshsirat, Perin, Rossi. *Decentralized LLM Inference over Edge Networks with Energy Harvesting.* IEEE GLOBECOM 2024. | Primary reference — semi‑Markov model, scheduling baselines (D1/D2/D3), system topology |
 | Tian et al. *CLONE: Customizing LLMs for Efficient Latency‑Aware Inference at the Edge.* USENIX ATC 2025. | DVFS‑based dynamic power management; motivates device‑level adaptation |
-| Griggs et al. *DynamoLLM: Designing LLM Inference Clusters for Performance and Energy Efficiency.* HPCA 2025. | Race‑to‑idle effect; supports power‑mode modeling and dynamic reconfiguration |
+| Stojkovic et al. *DynamoLLM: Designing LLM Inference Clusters for Performance and Energy Efficiency.* HPCA 2025. | Race‑to‑idle effect; supports power‑mode modeling and dynamic reconfiguration |
 | Stojkovic et al. *Energy‑Performance Tradeoffs in LLM Serving.* | Characterization of GPU frequency, batch size, and parallelism impacts on energy |
 | HarvNet (Islam et al.). *Energy‑Adaptive Multi‑Exit DNN Inference for Solar‑Powered Systems.* | Demonstrates importance of real‑time adaptation under variable solar energy |
 | EdgeShard. *Dynamic Programming–Based Partitioning for Edge/Cloud Hybrid LLM Inference.* | Decentralized inference across heterogeneous devices; motivates multi‑device pipeline |
