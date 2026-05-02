@@ -48,7 +48,10 @@ save one CSV per experiment to `results/`.
 - Replaces i.i.d. uniform model with sinusoidal solar profile
 - X-axis: diurnal peak [J/slot], 150 → 1150 (giving means 100–600 J/slot,
   matching Exp 1's range for direct comparison)
-- Fixed: base = 50 J/slot, period = 864 slots (24h at δ=100s)
+- Fixed: base = 50 J/slot, period = T = 100 slots (one full sinusoidal cycle per run)
+  > Note: the physically realistic 24h period is 864 slots at δ=100s, but this makes
+  > the diurnal structure invisible within a T=100 run. Period is set to T so every
+  > simulation run experiences a complete day-night cycle.
 - Metrics: inactive fraction, normalised throughput
 
 ### Experiment 4 — Heterogeneous devices *(novel contribution)*
@@ -169,5 +172,5 @@ All parameters are in `experiments/config.py`. Key values:
 | `T` | 100 | Paper §V |
 | `N_ITERATIONS` | 1000 | Paper §V |
 | `JOB_ARRIVAL_PROB` | 0.3 | Paper Fig 3a baseline |
-| `ENERGY_MEAN_BASELINE` | 550 J/slot | Paper Fig 3b baseline |
+| `ENERGY_MEAN_BASELINE` | 0.55 kJ/slot (= 550 J/slot) | Paper Fig 3b baseline |
 | `TARGET_RISK` | 0.01 | Paper §IV (1%) |

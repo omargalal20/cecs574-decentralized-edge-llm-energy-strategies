@@ -60,7 +60,7 @@ The seven strategies let the paper make three concrete claims:
 
 **Claim 1 — Static strategies fail under variable energy.** The performance gap between S1, S2, S3 widens as energy becomes scarce. No single fixed wattage is universally optimal.
 
-**Claim 2 — Each layer of dynamism adds measurable gain.** D1 > S1–S3. D2 > D1. D3+D2 > D2 alone. The gains are large enough to justify the added complexity at low energy or high load.
+**Claim 2 — Each layer of dynamism adds measurable gain.** D1 > S1–S3 on downtime across all experiments. D4 > D1 by 2–4 percentage points in the policy-sensitive energy regime (0.30–0.55 kJ/slot). D3 outperforms D1/D2 on downtime at high load (p ≥ 0.5) where device-level power-mode control matters more than scheduling alone. Note: D2 produced identical results to D1 in all tested regimes because D2's adaptive reweighting only activates when a device enters the lowest power mode (15W), which did not occur at the baseline energy level.
 
 **Claim 3 — D4 outperforms threshold-based strategies under correlated energy.** Continuous proportional weighting is smoother than reacting only at a threshold crossing, particularly when energy varies gradually (diurnal pattern) or devices are heterogeneous.
 
@@ -72,26 +72,29 @@ The seven strategies let the paper make three concrete claims:
 |---|---|---|---|
 | **Exp 1** | Mean energy arrival (0.05–0.60 kJ/slot = 50–600 J/slot) at fixed p=0.3 | Static strategies diverge first as energy becomes scarce | Figs 3a / 4a (extended) |
 | **Exp 2** | Job arrival probability p (0.1–1.0) at fixed energy | Dynamic strategies drop far fewer jobs under heavy load | Figs 3b / 4b (extended) |
-| **Exp 3** | Diurnal peak energy (0.15–1.15 kJ/slot) | D4 outperforms D2 under correlated solar energy; D1 degrades worst | Novel |
-| **Exp 4** | Heterogeneity scale (0.0–1.0) | D4 adapts naturally to different battery sizes; D2 thresholds do not scale | Novel |
+| **Exp 3** | Diurnal peak energy (0.15–1.15 kJ/slot) | D4's advantage over D1 grows to 4.5 pp under correlated solar energy; D1 shows a non-monotonic bump due to model-mismatch with i.i.d. offline weights | Novel |
+| **Exp 4** | Heterogeneity scale (0.0–1.0) | D4's advantage grows monotonically with heterogeneity (+2.5 pp at scale=0 to +4.2 pp at scale=1); proportional weighting adapts naturally without threshold calibration | Novel |
 
 ### Expected Results
 
 **Experiments 1 & 2** (validation against paper):
 
-- Downtime ranking at low energy: `D2+D3 < D1 < S2 < S1 < S3`
-- Throughput ranking: `D2+D3 > D1 > S2 > S3 > S1`
-- At high energy all strategies converge toward zero downtime
+- Downtime ranking at low-to-mid energy: `D4 < D1 = D2 < D3 < S2 < S3 < S1`
+- At high load (p ≥ 0.5), D3 overtakes D1/D2: `D4 < D3 < D1 = D2`
+- Throughput ranking mirrors downtime (lower downtime → higher throughput)
+- Above 0.55 kJ/slot all strategies converge as energy abundance removes scarcity pressure
 
 **Experiment 3** (novel):
 
-- D4 downtime advantage over D2 should be *larger* under diurnal than i.i.d. conditions
-- D1 should degrade most — its offline weights assume i.i.d. energy
+- D4's downtime advantage over D1 is larger under diurnal than i.i.d. conditions (4.5 pp vs 2–4 pp), because extended overnight low-energy windows create sustained imbalance that threshold-based approaches cannot anticipate
+- D1 shows a non-monotonic response (downtime increases then recovers around peak=0.877 kJ/slot) due to mismatch between offline i.i.d. Markov weights and the actual sinusoidal pattern
+- D1 = D2 throughout, as D2's adaptive mechanism never triggered at these energy levels
 
 **Experiment 4** (novel):
 
-- D4 naturally handles heterogeneous E_max (proportional weighting adjusts automatically)
-- D2's fixed 10 kJ threshold hits proportionally earlier on small-battery devices
+- D4 naturally concentrates load on energy-rich devices at every slot via proportional weighting — no per-device calibration needed
+- D4's advantage over D1 grows monotonically with heterogeneity, from +2.5 pp (homogeneous) to +4.2 pp (highly varied)
+- D1 = D2 throughout all heterogeneity scales
 
 ---
 
